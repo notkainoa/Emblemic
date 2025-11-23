@@ -104,7 +104,7 @@ The application runs entirely in your browser with no server-side dependencies, 
 
 ## Technology Stack
 
-IconForge is built with modern web technologies:
+Emblemic is built with modern web technologies:
 
 - **Framework**: [React 19](https://react.dev/) - UI library
 - **Language**: [TypeScript](https://www.typescriptlang.org/) - Type-safe JavaScript
@@ -150,7 +150,7 @@ The optimized production build will be created in the `dist/` directory, ready t
 
 ## Export Options
 
-IconForge exports icons as high-resolution PNG files with the following specifications:
+Emblemic exports icons as high-resolution PNG files with the following specifications:
 
 - **Default Export Size**: 1024×1024 pixels (configurable in the code)
 - **Internal Render Resolution**: 512×512 pixels for smooth editing
@@ -163,22 +163,3 @@ The export functionality renders your design at the target resolution, ensuring 
 - Desktop application icons
 - Social media profile images
 - Marketing materials
-
-## Browser Support
-
-IconForge works in all modern browsers that support:
-- ES6+ JavaScript
-- Canvas API
-- Local Storage API
-- Modern CSS (Grid, Flexbox)
-
-Tested and confirmed working on:
-- Chrome/Edge 90+
-- Firefox 88+
-- Safari 14+
-
-## Acknowledgments
-
-- Icons provided by [Lucide](https://lucide.dev/)
-- Fonts from [Google Fonts](https://fonts.google.com/)
-- Built with inspiration from professional design tools

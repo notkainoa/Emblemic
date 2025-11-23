@@ -138,6 +138,9 @@ export const INITIAL_CONFIG: IconConfig = {
     pixelColor: '#ffffff',
     pixelSize: 400,
     showGridLines: true,
+    imageSrc: null,
+    imageSize: 360,
+    imageOffsetY: 0,
     exportSize: 1024,
     withBackground: true,
 };

@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Download, Undo2, Redo2, Layers, Search, 
   ChevronDown, Type, Image as ImageIcon, Grid3X3, 
-  Plus, Check, Trash2, File, X
+  Plus, Check, Trash2, File, X, Upload
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import Preview from './components/Preview';
@@ -148,14 +148,14 @@ const ColorInput = ({ value, onChange, label }: { value: string; onChange: (val:
 const TabButton = ({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: any; label: string }) => (
   <button
     onClick={onClick}
-    className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-md transition-all ${
+    title={label}
+    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-md transition-all ${
       active 
         ? 'bg-zinc-800 text-white shadow-sm ring-1 ring-white/5' 
         : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
     }`}
   >
-    <Icon size={14} />
-    {label}
+    <Icon size={20} />
   </button>
 );
 
@@ -258,7 +258,18 @@ export default function App() {
         if (saved) {
             const parsed = JSON.parse(saved);
             const sorted = parsed.sort((a: SavedFile, b: SavedFile) => b.lastModified - a.lastModified);
-            if (sorted.length > 0) return sorted;
+            
+            // Simple migration to ensure imageSize exists on old saves
+            const migrated = sorted.map((f: any) => ({
+                ...f,
+                config: {
+                    ...INITIAL_CONFIG,
+                    ...f.config,
+                    imageSize: f.config.imageSize || (f.config.imageScale ? 360 : INITIAL_CONFIG.imageSize)
+                }
+            }));
+            
+            if (migrated.length > 0) return migrated;
         }
     } catch (e) {
         console.error("Failed to load saved files", e);
@@ -494,6 +505,21 @@ export default function App() {
     };
   }, [isZoomMenuOpen, isFilesMenuOpen]);
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            if (event.target?.result) {
+                updateConfig({ imageSrc: event.target.result as string });
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  };
+
 
   // --- Export Logic ---
   const processExport = async (format: ExportFormat, scope: ExportScope) => {
@@ -557,6 +583,16 @@ export default function App() {
                 }
             });
             contentSvg = `<g>${rects}</g>`;
+        } else if (config.mode === 'image' && config.imageSrc) {
+            const drawSize = config.imageSize;
+            contentSvg = `<image 
+                href="${config.imageSrc}" 
+                x="${(ICON_SIZE - drawSize)/2}" 
+                y="${(ICON_SIZE - drawSize)/2 + config.imageOffsetY}" 
+                width="${drawSize}" 
+                height="${drawSize}" 
+                preserveAspectRatio="xMidYMid meet"
+            />`;
         }
 
         // 2. Assemble Final SVG
@@ -671,13 +707,8 @@ export default function App() {
             ctx.putImageData(imageData, 0, 0);
         }
     } else {
-        // Transparent background
-        // For JPG, transparency renders as black usually. We could fill white if format is jpg?
-        // Let's just leave it transparent (defaults to black in many viewers if JPEG).
         if (format === 'jpg') {
              // Optional: fill white for JPG if no background? 
-             // ctx.fillStyle = '#000000'; 
-             // ctx.fillRect(0,0,size,size);
         }
     }
 
@@ -728,7 +759,36 @@ export default function App() {
                 img.src = url;
             });
         }
+    } else if (config.mode === 'image' && config.imageSrc) {
+        const img = new Image();
+        await new Promise((resolve) => {
+            img.onload = resolve;
+            img.src = config.imageSrc!;
+        });
+        
+        // Size logic: imageSize fits within box, aspect ratio preserved
+        const drawSize = config.imageSize * scaleFactor;
+        const aspect = img.width / img.height;
+        let w, h;
+        if (aspect > 1) {
+             w = drawSize;
+             h = drawSize / aspect;
+        } else {
+             h = drawSize;
+             w = drawSize * aspect;
+        }
+
+        const offsetY = config.imageOffsetY * scaleFactor;
+        
+        ctx.drawImage(
+            img, 
+            -w / 2, 
+            -h / 2 + offsetY, 
+            w, 
+            h
+        );
     }
+
     ctx.restore();
 
     // 3. Trigger Download
@@ -912,6 +972,7 @@ export default function App() {
                     <TabButton active={config.mode === 'icon'} onClick={() => updateConfig({ mode: 'icon' })} icon={ImageIcon} label="Icon" />
                     <TabButton active={config.mode === 'text'} onClick={() => updateConfig({ mode: 'text' })} icon={Type} label="Text" />
                     <TabButton active={config.mode === 'pixel'} onClick={() => updateConfig({ mode: 'pixel' })} icon={Grid3X3} label="Pixel" />
+                    <TabButton active={config.mode === 'image'} onClick={() => updateConfig({ mode: 'image' })} icon={Upload} label="Upload" />
                 </div>
              </div>
 
@@ -1030,6 +1091,53 @@ export default function App() {
                         </div>
                     </div>
                 )}
+
+                 {/* IMAGE MODE */}
+                 {config.mode === 'image' && (
+                    <div className="animate-in fade-in duration-300">
+                        <Section title="Upload Image">
+                            <div className="relative">
+                                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-zinc-800 rounded-lg hover:border-zinc-700 hover:bg-zinc-900/50 transition-all cursor-pointer group">
+                                    {config.imageSrc ? (
+                                        <div className="relative w-full h-full p-2">
+                                            <img src={config.imageSrc} className="w-full h-full object-contain" alt="Preview" />
+                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                <span className="text-xs text-white font-medium">Change Image</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                            <Upload className="w-8 h-8 text-zinc-500 mb-2 group-hover:text-zinc-400 transition-colors" />
+                                            <p className="text-xs text-zinc-500 group-hover:text-zinc-400">
+                                                <span className="font-semibold">Click to upload</span>
+                                            </p>
+                                        </div>
+                                    )}
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        className="hidden" 
+                                        onChange={handleImageUpload} 
+                                    />
+                                </label>
+                                {config.imageSrc && (
+                                     <button 
+                                        onClick={() => updateConfig({ imageSrc: null })}
+                                        className="absolute -top-2 -right-2 p-1 bg-zinc-800 rounded-full border border-white/10 text-zinc-500 hover:text-red-400 hover:bg-zinc-700 transition-all shadow-lg"
+                                        title="Remove image"
+                                     >
+                                         <X size={12} />
+                                     </button>
+                                )}
+                            </div>
+                        </Section>
+
+                        <Section title="Adjustments">
+                            <NumberInput label="Size" value={config.imageSize} min={32} max={ICON_SIZE} step={8} suffix="px" onChange={(v) => updateConfig({ imageSize: v })} />
+                            <NumberInput label="Vertical Offset" value={config.imageOffsetY} min={-256} max={256} step={4} suffix="px" onChange={(v) => updateConfig({ imageOffsetY: v })} />
+                        </Section>
+                    </div>
+                 )}
              </div>
         </aside>
 

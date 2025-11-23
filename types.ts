@@ -1,6 +1,6 @@
 import { LucideIcon } from 'lucide-react';
 
-export type ContentMode = 'icon' | 'text' | 'pixel';
+export type ContentMode = 'icon' | 'text' | 'pixel' | 'image';
 export type BackgroundType = 'solid' | 'linear' | 'radial';
 
 export interface GradientPoint {
@@ -42,6 +42,11 @@ export interface IconConfig {
   pixelColor: string;
   pixelSize: number;
   showGridLines: boolean;
+
+  // Image Mode
+  imageSrc: string | null;
+  imageSize: number;
+  imageOffsetY: number;
 
   // Export
   exportSize: number;

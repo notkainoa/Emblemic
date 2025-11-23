@@ -131,6 +131,32 @@ const Preview: React.FC<PreviewProps> = ({ config, id }) => {
               ))}
             </div>
           )}
+
+          {mode === 'image' && config.imageSrc && (
+             <div
+                style={{
+                  width: `${config.imageSize * scale}px`,
+                  height: `${config.imageSize * scale}px`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transform: `translateY(${config.imageOffsetY * scale}px)`,
+                }}
+             >
+               <img 
+                 src={config.imageSrc} 
+                 alt="Uploaded content" 
+                 style={{ 
+                   maxWidth: '100%', 
+                   maxHeight: '100%', 
+                   objectFit: 'contain',
+                   userSelect: 'none',
+                   pointerEvents: 'none',
+                   display: 'block'
+                 }} 
+               />
+             </div>
+          )}
         </div>
       </div>
     </div>

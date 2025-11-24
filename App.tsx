@@ -1157,7 +1157,10 @@ export default function App() {
                                     onChange={(e) => setIconSearch(e.target.value)}
                                 />
                             </div>
-                            <div className="grid grid-cols-5 gap-1.5 max-h-[600px] overflow-y-auto p-1 bg-zinc-900/30 rounded-lg border border-white/5">
+                            <div
+                                className="grid grid-cols-5 gap-1.5 overflow-y-auto p-1 bg-zinc-900/30 rounded-lg border border-white/5"
+                                style={{ maxHeight: 'calc(100vh - 18rem)' }}
+                            >
                                 {iconList.map((name) => {
                                     const Icon = (LucideIcons as any)[name];
                                     return (

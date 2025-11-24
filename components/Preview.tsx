@@ -160,20 +160,34 @@ const Preview: React.FC<PreviewProps> = ({ config, id }) => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   transform: `translateY(${config.imageOffsetY * scale}px)`,
+                  ...(config.imageSrc.startsWith('data:image/svg') ? {
+                    // For SVG, use the image as a mask and fill with the color
+                    WebkitMaskImage: `url(${config.imageSrc})`,
+                    WebkitMaskSize: 'contain',
+                    WebkitMaskRepeat: 'no-repeat',
+                    WebkitMaskPosition: 'center',
+                    maskImage: `url(${config.imageSrc})`,
+                    maskSize: 'contain',
+                    maskRepeat: 'no-repeat',
+                    maskPosition: 'center',
+                    backgroundColor: config.imageColor,
+                  } : {})
                 }}
              >
-               <img 
-                 src={config.imageSrc} 
-                 alt="Uploaded content" 
-                 style={{ 
-                   maxWidth: '100%', 
-                   maxHeight: '100%', 
-                   objectFit: 'contain',
-                   userSelect: 'none',
-                   pointerEvents: 'none',
-                   display: 'block'
-                 }} 
-               />
+               {!config.imageSrc.startsWith('data:image/svg') && (
+                 <img 
+                   src={config.imageSrc} 
+                   alt="Uploaded content" 
+                   style={{ 
+                     maxWidth: '100%', 
+                     maxHeight: '100%', 
+                     objectFit: 'contain',
+                     userSelect: 'none',
+                     pointerEvents: 'none',
+                     display: 'block',
+                   }} 
+                 />
+               )}
              </div>
           )}
         </div>

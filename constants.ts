@@ -144,6 +144,7 @@ export const INITIAL_CONFIG: IconConfig = {
     imageSrc: null,
     imageSize: 256,
     imageOffsetY: 0,
+    imageColor: '#ffffff',
     exportSize: 1024,
     withBackground: true,
 };

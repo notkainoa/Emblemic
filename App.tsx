@@ -515,6 +515,7 @@ export default function App() {
                     ...INITIAL_CONFIG,
                     ...f.config,
                     imageSize: f.config.imageSize || (f.config.imageScale ? 256 : INITIAL_CONFIG.imageSize),
+                    imageColor: f.config.imageColor || INITIAL_CONFIG.imageColor,
                     radialGlareOpacity: f.config.radialGlareOpacity ?? 0,
                     backgroundTransitioning: false,
                 }
@@ -577,7 +578,12 @@ export default function App() {
   const applyImageSource = useCallback((src: string) => {
     setHistory((curr) => ({
         past: [...curr.past, curr.present],
-        present: { ...curr.present, mode: 'image', imageSrc: src },
+        present: { 
+            ...curr.present, 
+            mode: 'image', 
+            imageSrc: src,
+            imageColor: curr.present.imageColor || INITIAL_CONFIG.imageColor
+        },
         future: []
     }));
   }, []);
@@ -1090,14 +1096,31 @@ export default function App() {
             contentSvg = `<g>${rects}</g>`;
         } else if (config.mode === 'image' && config.imageSrc) {
             const drawSize = config.imageSize;
-            contentSvg = `<image 
-                href="${config.imageSrc}" 
-                x="${(ICON_SIZE - drawSize)/2}" 
-                y="${(ICON_SIZE - drawSize)/2 + config.imageOffsetY}" 
-                width="${drawSize}" 
-                height="${drawSize}" 
-                preserveAspectRatio="xMidYMid meet"
-            />`;
+            const isSvg = config.imageSrc.startsWith('data:image/svg');
+            
+            if (isSvg) {
+                // For SVG images, we can apply a color filter
+                contentSvg = `<g style="color: ${config.imageColor};">
+                    <image 
+                        href="${config.imageSrc}" 
+                        x="${(ICON_SIZE - drawSize)/2}" 
+                        y="${(ICON_SIZE - drawSize)/2 + config.imageOffsetY}" 
+                        width="${drawSize}" 
+                        height="${drawSize}" 
+                        preserveAspectRatio="xMidYMid meet"
+                        style="fill: currentColor; color: ${config.imageColor};"
+                    />
+                </g>`;
+            } else {
+                contentSvg = `<image 
+                    href="${config.imageSrc}" 
+                    x="${(ICON_SIZE - drawSize)/2}" 
+                    y="${(ICON_SIZE - drawSize)/2 + config.imageOffsetY}" 
+                    width="${drawSize}" 
+                    height="${drawSize}" 
+                    preserveAspectRatio="xMidYMid meet"
+                />`;
+            }
         }
 
         // 2. Assemble Final SVG
@@ -1285,6 +1308,8 @@ export default function App() {
         }
     } else if (config.mode === 'image' && config.imageSrc) {
         const img = new Image();
+        const isSvg = config.imageSrc.startsWith('data:image/svg');
+        
         await new Promise((resolve) => {
             img.onload = resolve;
             img.src = config.imageSrc!;
@@ -1304,13 +1329,31 @@ export default function App() {
 
         const offsetY = config.imageOffsetY * scaleFactor;
         
-        ctx.drawImage(
-            img, 
-            -w / 2, 
-            -h / 2 + offsetY, 
-            w, 
-            h
-        );
+        if (isSvg) {
+            // For SVG images, apply color tinting
+            // First draw the image normally
+            ctx.drawImage(
+                img, 
+                -w / 2, 
+                -h / 2 + offsetY, 
+                w, 
+                h
+            );
+            
+            // Then apply color overlay using composite operation
+            ctx.globalCompositeOperation = 'source-in';
+            ctx.fillStyle = config.imageColor;
+            ctx.fillRect(-w / 2, -h / 2 + offsetY, w, h);
+            ctx.globalCompositeOperation = 'source-over';
+        } else {
+            ctx.drawImage(
+                img, 
+                -w / 2, 
+                -h / 2 + offsetY, 
+                w, 
+                h
+            );
+        }
     }
 
     ctx.restore();
@@ -1902,6 +1945,9 @@ export default function App() {
                      <Section title="Image Settings">
                         <NumberInput label="Size" value={config.imageSize} min={32} max={1024} step={8} suffix="px" onChange={(v) => updateConfig({ imageSize: v })} />
                         <NumberInput label="Vertical Offset" value={config.imageOffsetY} min={-512} max={512} step={4} suffix="px" onChange={(v) => updateConfig({ imageOffsetY: v })} />
+                        {config.imageSrc && config.imageSrc.startsWith('data:image/svg') && (
+                            <ColorInput label="Image Color" value={config.imageColor} onChange={(v) => updateConfig({ imageColor: v })} />
+                        )}
                      </Section>
                  )}
             </div>

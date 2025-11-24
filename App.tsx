@@ -418,6 +418,7 @@ export default function App() {
                     imageColor: f.config.imageColor || INITIAL_CONFIG.imageColor,
                     radialGlareOpacity: f.config.radialGlareOpacity ?? 0,
                     pixelRounding: f.config.pixelRounding ?? false,
+                    pixelRoundingStyle: f.config.pixelRoundingStyle || '25%',
                     backgroundTransitioning: false,
                 }
             }));
@@ -954,7 +955,9 @@ export default function App() {
                     if (config.pixelRounding) {
                         // Use rounded corners with smart detection
                         const corners = getSmartRoundedCorners(config.pixelGrid, i);
-                        const radius = cellSize * 0.25; // 25% corner radius
+                        // Convert percentage to actual pixel value
+                        const radiusPercent = parseFloat(config.pixelRoundingStyle) / 100;
+                        const radius = cellSize * radiusPercent;
                         
                         // Generate path with selective rounded corners
                         const tl = corners.topLeft ? radius : 0;
@@ -1178,7 +1181,9 @@ export default function App() {
                 if (config.pixelRounding) {
                     // Draw with smart rounded corners
                     const corners = getSmartRoundedCorners(config.pixelGrid, i);
-                    const radius = cellSize * 0.25; // 25% corner radius
+                    // Convert percentage to actual pixel value
+                    const radiusPercent = parseFloat(config.pixelRoundingStyle) / 100;
+                    const radius = cellSize * radiusPercent;
                     
                     ctx.beginPath();
                     ctx.moveTo(x + (corners.topLeft ? radius : 0), y);
@@ -1858,8 +1863,35 @@ export default function App() {
                                 </button>
                             </div>
                             {config.pixelRounding && (
-                                <div className="text-[10px] text-zinc-500 pl-1 animate-in slide-in-from-top-1 fade-in duration-200">
-                                    Rounds corners that aren't connected to other pixels
+                                <div className="space-y-3 animate-in slide-in-from-top-1 fade-in duration-200">
+                                    <div className="text-[10px] text-zinc-500 pl-1">
+                                        Rounds corners that aren't connected to other pixels
+                                    </div>
+                                    <div className="flex items-center justify-between pl-1">
+                                        <span className="text-[11px] font-medium text-zinc-400">Corner Style</span>
+                                        <div className="flex gap-1 bg-zinc-900 p-0.5 rounded-md border border-white/5">
+                                            <button
+                                                onClick={() => updateConfig({ pixelRoundingStyle: '25%' })}
+                                                className={`px-3 py-1 text-[10px] font-medium rounded transition-all ${
+                                                    config.pixelRoundingStyle === '25%' 
+                                                    ? 'bg-zinc-700 text-white shadow-sm' 
+                                                    : 'text-zinc-500 hover:text-zinc-300'
+                                                }`}
+                                            >
+                                                Soft
+                                            </button>
+                                            <button
+                                                onClick={() => updateConfig({ pixelRoundingStyle: '50%' })}
+                                                className={`px-3 py-1 text-[10px] font-medium rounded transition-all ${
+                                                    config.pixelRoundingStyle === '50%' 
+                                                    ? 'bg-zinc-700 text-white shadow-sm' 
+                                                    : 'text-zinc-500 hover:text-zinc-300'
+                                                }`}
+                                            >
+                                                Round
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>

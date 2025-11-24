@@ -140,6 +140,7 @@ export const INITIAL_CONFIG: IconConfig = {
     pixelColor: '#ffffff',
     pixelSize: 256,
     pixelRounding: false,
+    pixelRoundingStyle: '25%' as '25%' | '50%',
     imageSrc: null,
     imageSize: 256,
     imageOffsetY: 0,

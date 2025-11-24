@@ -35,15 +35,18 @@ export function getSmartRoundedCorners(grid: PixelGrid, index: number): {
 /**
  * Converts corner flags to a CSS border-radius string
  * @param corners Object with boolean flags for each corner
+ * @param radius The radius value to use (e.g., '25%' or '50%')
  * @returns CSS border-radius string (e.g., "25% 25% 0% 0%")
  */
-export function cornersToBorderRadius(corners: {
-  topLeft: boolean;
-  topRight: boolean;
-  bottomLeft: boolean;
-  bottomRight: boolean;
-}): string {
-  const radius = '25%';
+export function cornersToBorderRadius(
+  corners: {
+    topLeft: boolean;
+    topRight: boolean;
+    bottomLeft: boolean;
+    bottomRight: boolean;
+  },
+  radius: string = '25%'
+): string {
   const noRadius = '0%';
   
   const topLeft = corners.topLeft ? radius : noRadius;

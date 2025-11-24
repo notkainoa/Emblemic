@@ -64,6 +64,7 @@ const Preview: React.FC<PreviewProps> = ({ config, id }) => {
     pixelGrid,
     pixelSize,
     pixelRounding,
+    pixelRoundingStyle,
   } = config;
 
   // Calculate scale factor from internal resolution (512) to preview display (256)
@@ -171,7 +172,7 @@ const Preview: React.FC<PreviewProps> = ({ config, id }) => {
                   key={i} 
                   style={{ 
                     backgroundColor: c || 'transparent',
-                    borderRadius: pixelRounding && c ? cornersToBorderRadius(getSmartRoundedCorners(pixelGrid, i)) : '0',
+                    borderRadius: pixelRounding && c ? cornersToBorderRadius(getSmartRoundedCorners(pixelGrid, i), pixelRoundingStyle) : '0',
                   }} 
                 />
               ))}

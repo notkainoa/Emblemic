@@ -44,6 +44,7 @@ export interface IconConfig {
   pixelColor: string;
   pixelSize: number;
   pixelRounding: boolean;
+  pixelRoundingStyle: '25%' | '50%';
 
   // Image Mode
   imageSrc: string | null;

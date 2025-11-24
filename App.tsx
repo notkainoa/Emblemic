@@ -28,6 +28,13 @@ interface SavedFile {
 type ExportFormat = 'png' | 'jpg' | 'webp' | 'svg';
 type ExportScope = 'full' | 'content';
 
+interface PendingCrop {
+    originalSrc: string;
+    croppedSrc: string;
+    whitespaceRatio: number;
+    fileName: string;
+}
+
 // --- UI Helper Components ---
 
 const Section = ({ title, children, className = "" }: { title: string; children?: React.ReactNode; className?: string }) => (
@@ -319,6 +326,74 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onExport, fi
 
 const generateId = () => Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
 
+interface CropSuggestionModalProps {
+    pending: PendingCrop | null;
+    onAcceptCrop: () => void;
+    onSkip: () => void;
+}
+
+const CropSuggestionModal: React.FC<CropSuggestionModalProps> = ({ pending, onAcceptCrop, onSkip }) => {
+    if (!pending) return null;
+
+    const whitespacePercent = Math.round(pending.whitespaceRatio * 100);
+
+    return (
+        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-3xl bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-white/5 animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
+                <div className="p-6 space-y-6">
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                            <h2 className="text-lg font-semibold text-white">Trim transparent padding?</h2>
+                            <p className="text-sm text-zinc-400 max-w-xl">
+                                We noticed about {whitespacePercent}% of this image is transparent padding. Crop it so your upload fills the frame?
+                            </p>
+                        </div>
+                        <button
+                            onClick={onSkip}
+                            className="p-2 -mr-2 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
+                            title="Keep image as-is"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-zinc-950 border border-white/5 rounded-xl p-3 flex flex-col gap-3">
+                            <div className="text-xs font-semibold text-zinc-300">Original</div>
+                            <div className="aspect-square rounded-lg bg-zinc-900 border border-white/5 flex items-center justify-center overflow-hidden">
+                                <img src={pending.originalSrc} alt="Original upload" className="object-contain max-h-full" />
+                            </div>
+                        </div>
+                        <div className="bg-zinc-950 border border-white/5 rounded-xl p-3 flex flex-col gap-3">
+                            <div className="text-xs font-semibold text-zinc-300">Cropped preview</div>
+                            <div className="aspect-square rounded-lg bg-zinc-900 border border-white/5 flex items-center justify-center overflow-hidden">
+                                <img src={pending.croppedSrc} alt="Cropped preview" className="object-contain max-h-full" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                            onClick={onAcceptCrop}
+                            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-white text-black hover:bg-zinc-200 font-semibold text-sm transition-all"
+                        >
+                            <Check size={16} />
+                            Crop away the whitespace
+                        </button>
+                        <button
+                            onClick={onSkip}
+                            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-white/10 text-zinc-200 hover:border-white/30 hover:bg-white/5 font-semibold text-sm transition-all"
+                        >
+                            <X size={16} />
+                            Keep original
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- Main App ---
 
 export default function App() {
@@ -383,20 +458,91 @@ export default function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const dragCounterRef = useRef(0);
+  const [pendingCrop, setPendingCrop] = useState<PendingCrop | null>(null);
+
+  const applyImageSource = useCallback((src: string) => {
+    setHistory((curr) => ({
+        past: [...curr.past, curr.present],
+        present: { ...curr.present, mode: 'image', imageSrc: src },
+        future: []
+    }));
+  }, []);
+
+  const detectTransparentWhitespace = (img: HTMLImageElement) => {
+    const width = img.naturalWidth;
+    const height = img.naturalHeight;
+    if (!width || !height) return null;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+
+    const { data } = ctx.getImageData(0, 0, width, height);
+    let minX = width, minY = height, maxX = -1, maxY = -1;
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = (y * width + x) * 4 + 3; // alpha channel
+            const alpha = data[idx];
+            if (alpha > 5) {
+                if (x < minX) minX = x;
+                if (y < minY) minY = y;
+                if (x > maxX) maxX = x;
+                if (y > maxY) maxY = y;
+            }
+        }
+    }
+
+    // No visible pixels
+    if (maxX === -1 || maxY === -1) return null;
+
+    const contentWidth = maxX - minX + 1;
+    const contentHeight = maxY - minY + 1;
+    const whitespaceArea = width * height - contentWidth * contentHeight;
+    const whitespaceRatio = whitespaceArea / (width * height);
+
+    // Only suggest trimming if there is notable transparent padding (>8%)
+    const hasMeaningfulWhitespace = whitespaceRatio > 0.08 && (width - contentWidth > 6 || height - contentHeight > 6);
+    if (!hasMeaningfulWhitespace) return null;
+
+    const cropCanvas = document.createElement('canvas');
+    cropCanvas.width = contentWidth;
+    cropCanvas.height = contentHeight;
+    const cropCtx = cropCanvas.getContext('2d');
+    if (!cropCtx) return null;
+    cropCtx.drawImage(img, -minX, -minY);
+    const croppedSrc = cropCanvas.toDataURL('image/png');
+
+    return { croppedSrc, whitespaceRatio };
+  };
 
   const handleImageFile = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = (event) => {
         if (event.target?.result) {
-            setHistory((curr) => ({
-                past: [...curr.past, curr.present],
-                present: { ...curr.present, mode: 'image', imageSrc: event.target?.result as string },
-                future: []
-            }));
+            const src = event.target.result as string;
+            const img = new Image();
+            img.onload = () => {
+                const analysis = detectTransparentWhitespace(img);
+                if (analysis) {
+                    setPendingCrop({
+                        originalSrc: src,
+                        croppedSrc: analysis.croppedSrc,
+                        whitespaceRatio: analysis.whitespaceRatio,
+                        fileName: file.name
+                    });
+                } else {
+                    applyImageSource(src);
+                }
+            };
+            img.src = src;
         }
     };
     reader.readAsDataURL(file);
-  }, []);
+  }, [applyImageSource]);
 
   // --- Persistence Effects ---
 
@@ -712,6 +858,18 @@ export default function App() {
     // Reset input so same file can be selected again
     e.target.value = '';
   };
+
+  const handleAcceptCrop = useCallback(() => {
+    if (!pendingCrop) return;
+    applyImageSource(pendingCrop.croppedSrc);
+    setPendingCrop(null);
+  }, [applyImageSource, pendingCrop]);
+
+  const handleSkipCrop = useCallback(() => {
+    if (!pendingCrop) return;
+    applyImageSource(pendingCrop.originalSrc);
+    setPendingCrop(null);
+  }, [applyImageSource, pendingCrop]);
 
 
   // --- Export Logic ---
@@ -1050,10 +1208,16 @@ export default function App() {
 
       {/* Export Modal */}
       <ExportModal
-        isOpen={isExportModalOpen} 
-        onClose={() => setIsExportModalOpen(false)} 
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
         onExport={processExport}
         filename={filename}
+      />
+
+      <CropSuggestionModal
+        pending={pendingCrop}
+        onAcceptCrop={handleAcceptCrop}
+        onSkip={handleSkipCrop}
       />
 
       {isDraggingFile && (

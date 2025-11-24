@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { IconConfig, PixelGrid } from '../types';
 import * as Icons from 'lucide-react';
 import { ICON_SIZE } from '../constants';
@@ -9,10 +9,40 @@ interface PreviewProps {
   id?: string; // For capture
 }
 
-// Display size in pixels on screen (independent of render resolution)
-const PREVIEW_SIZE = 256;
+// Calculate responsive preview size based on viewport
+const useResponsivePreviewSize = () => {
+  const [previewSize, setPreviewSize] = useState(256);
+
+  useEffect(() => {
+    const calculateSize = () => {
+      // Get viewport dimensions
+      const vh = window.innerHeight;
+      const vw = window.innerWidth;
+      
+      // Calculate available space (accounting for sidebars and padding)
+      // Left sidebar: 320px, Right sidebar: 320px, padding: 64px total
+      const availableWidth = vw - 640 - 64;
+      const availableHeight = vh - 56 - 64; // Header height + padding
+      
+      // Use the smaller dimension to ensure it fits, with min/max constraints
+      const calculatedSize = Math.min(
+        Math.max(200, Math.min(availableWidth, availableHeight) * 0.7),
+        512
+      );
+      
+      setPreviewSize(Math.round(calculatedSize));
+    };
+
+    calculateSize();
+    window.addEventListener('resize', calculateSize);
+    return () => window.removeEventListener('resize', calculateSize);
+  }, []);
+
+  return previewSize;
+};
 
 const Preview: React.FC<PreviewProps> = ({ config, id }) => {
+  const PREVIEW_SIZE = useResponsivePreviewSize();
   const {
     mode,
     backgroundType,

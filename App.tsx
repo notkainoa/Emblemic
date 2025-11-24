@@ -8,7 +8,7 @@ import {
 import * as LucideIcons from 'lucide-react';
 import Preview from './components/Preview';
 import PixelEditor from './components/PixelEditor';
-import { IconConfig, Preset, ContentMode, PixelGrid } from './types';
+import { IconConfig, Preset, ContentMode, PixelGrid, BackgroundType } from './types';
 import { FONTS, PRESETS, INITIAL_PIXEL_GRID_SIZE, INITIAL_CONFIG, ICON_SIZE, SQUIRCLE_PATH } from './constants';
 
 // --- Types ---
@@ -319,6 +319,82 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onExport, fi
 
 const generateId = () => Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
 
+const clamp = (value: number, min = 0, max = 1) => Math.min(Math.max(value, min), max);
+
+const hexToRgb = (hex: string) => {
+    const normalized = hex.replace('#', '');
+    const bigint = parseInt(normalized, 16);
+    return {
+        r: (bigint >> 16) & 255,
+        g: (bigint >> 8) & 255,
+        b: bigint & 255,
+    };
+};
+
+const rgbToHex = (r: number, g: number, b: number) => {
+    return (
+        '#' +
+        [r, g, b]
+            .map((x) => {
+                const hex = x.toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            })
+            .join('')
+    );
+};
+
+const shiftColor = (hex: string, delta = 0.12) => {
+    const { r, g, b } = hexToRgb(hex);
+    const rNorm = r / 255;
+    const gNorm = g / 255;
+    const bNorm = b / 255;
+
+    const max = Math.max(rNorm, gNorm, bNorm);
+    const min = Math.min(rNorm, gNorm, bNorm);
+    const l = (max + min) / 2;
+
+    const s = max === min ? 0 : l > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min);
+    let h = 0;
+
+    if (max !== min) {
+        switch (max) {
+            case rNorm:
+                h = (gNorm - bNorm) / (max - min) + (gNorm < bNorm ? 6 : 0);
+                break;
+            case gNorm:
+                h = (bNorm - rNorm) / (max - min) + 2;
+                break;
+            default:
+                h = (rNorm - gNorm) / (max - min) + 4;
+                break;
+        }
+        h /= 6;
+    }
+
+    const adjustedHue = (h + 0.02) % 1; // subtle hue shift for variety
+    const adjustedLightness = clamp(l + (l > 0.5 ? -delta : delta));
+
+    const hueToRgb = (p: number, q: number, t: number) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+    };
+
+    const q = adjustedLightness < 0.5
+        ? adjustedLightness * (1 + s)
+        : adjustedLightness + s - adjustedLightness * s;
+    const p = 2 * adjustedLightness - q;
+
+    const rOut = Math.round(hueToRgb(p, q, adjustedHue + 1 / 3) * 255);
+    const gOut = Math.round(hueToRgb(p, q, adjustedHue) * 255);
+    const bOut = Math.round(hueToRgb(p, q, adjustedHue - 1 / 3) * 255);
+
+    return rgbToHex(rOut, gOut, bOut).toUpperCase();
+};
+
 // --- Main App ---
 
 export default function App() {
@@ -337,7 +413,8 @@ export default function App() {
                     ...INITIAL_CONFIG,
                     ...f.config,
                     imageSize: f.config.imageSize || (f.config.imageScale ? 256 : INITIAL_CONFIG.imageSize),
-                    radialGlareOpacity: f.config.radialGlareOpacity ?? 0
+                    radialGlareOpacity: f.config.radialGlareOpacity ?? 0,
+                    backgroundTransitioning: false,
                 }
             }));
             
@@ -378,6 +455,16 @@ export default function App() {
   const [viewZoom, setViewZoom] = useState(1);
   const [isZoomMenuOpen, setIsZoomMenuOpen] = useState(false);
   const [iconSearch, setIconSearch] = useState('');
+
+  const backgroundTransitionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+      return () => {
+          if (backgroundTransitionTimeout.current) {
+              clearTimeout(backgroundTransitionTimeout.current);
+          }
+      };
+  }, []);
   
   // Export State
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -504,16 +591,20 @@ export default function App() {
   };
 
 
-  const pushToHistory = (newConfig: IconConfig) => {
-    setHistory(curr => ({
-      past: [...curr.past, curr.present],
-      present: newConfig,
-      future: []
-    }));
-  };
+  const updateConfig = (updates: Partial<IconConfig>, options?: { transient?: boolean }) => {
+    setHistory((curr) => {
+        const newConfig = { ...curr.present, ...updates } as IconConfig;
 
-  const updateConfig = (updates: Partial<IconConfig>) => {
-    pushToHistory({ ...config, ...updates });
+        if (options?.transient) {
+            return { ...curr, present: newConfig };
+        }
+
+        return {
+            past: [...curr.past, curr.present],
+            present: newConfig,
+            future: [],
+        };
+    });
   };
 
   const handleGridResize = (newSize: number) => {
@@ -545,6 +636,42 @@ export default function App() {
               data: newData
           }
       });
+  };
+
+  const handleBackgroundTypeChange = (targetType: BackgroundType) => {
+      if (targetType === config.backgroundType) return;
+
+      if (backgroundTransitionTimeout.current) {
+          clearTimeout(backgroundTransitionTimeout.current);
+      }
+
+      const updates: Partial<IconConfig> = { backgroundType: targetType };
+
+      if (config.backgroundType !== 'solid' && targetType === 'solid') {
+          updates.solidColor = config.gradientStart;
+      }
+
+      if (config.backgroundType === 'solid' && (targetType === 'linear' || targetType === 'radial')) {
+          const nextStart = config.solidColor;
+          updates.gradientStart = nextStart;
+          updates.gradientEnd = shiftColor(nextStart);
+
+          if (targetType === 'linear') {
+              updates.gradientAngle = 135;
+          }
+      }
+
+      if (targetType === 'linear' && config.backgroundType !== 'linear') {
+          updates.gradientAngle = updates.gradientAngle ?? config.gradientAngle ?? 135;
+      }
+
+      updates.backgroundTransitioning = true;
+
+      updateConfig(updates);
+
+      backgroundTransitionTimeout.current = setTimeout(() => {
+          updateConfig({ backgroundTransitioning: false }, { transient: true });
+      }, 180);
   };
 
   const handleUndo = () => {
@@ -1370,6 +1497,7 @@ export default function App() {
                                     gradientStart: preset.gradientStart,
                                     gradientEnd: preset.gradientEnd,
                                     gradientAngle: preset.gradientAngle,
+                                    backgroundTransitioning: false,
                                 })}
                                 className="group relative aspect-square rounded-full overflow-hidden ring-1 ring-white/10 hover:ring-white/40 transition-all hover:scale-110"
                                 title={preset.name}
@@ -1402,10 +1530,10 @@ export default function App() {
                             {(['solid', 'linear', 'radial'] as const).map(type => (
                                 <button
                                     key={type}
-                                    onClick={() => updateConfig({ backgroundType: type })}
+                                    onClick={() => handleBackgroundTypeChange(type)}
                                     className={`px-3 py-1 text-[10px] capitalize rounded-sm transition-all ${
-                                        config.backgroundType === type 
-                                        ? 'bg-zinc-700 text-white shadow-sm' 
+                                        config.backgroundType === type
+                                        ? 'bg-zinc-700 text-white shadow-sm'
                                         : 'text-zinc-500 hover:text-zinc-300'
                                     }`}
                                 >

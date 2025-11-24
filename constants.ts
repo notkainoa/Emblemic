@@ -1,5 +1,4 @@
 
-
 import { Preset, FontOption, IconConfig } from './types';
 
 export const ICON_SIZE = 512; // Internal render resolution
@@ -140,10 +139,10 @@ export const INITIAL_CONFIG: IconConfig = {
     },
     pixelColor: '#ffffff',
     pixelSize: 256,
-    pixelRounding: 0,
     imageSrc: null,
     imageSize: 256,
     imageOffsetY: 0,
+    imageColor: '#ffffff',
     exportSize: 1024,
     withBackground: true,
 };

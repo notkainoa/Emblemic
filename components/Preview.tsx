@@ -1,6 +1,5 @@
 
-
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { IconConfig, PixelGrid } from '../types';
 import * as Icons from 'lucide-react';
 import { ICON_SIZE } from '../constants';
@@ -10,10 +9,40 @@ interface PreviewProps {
   id?: string; // For capture
 }
 
-// Display size in pixels on screen (independent of render resolution)
-const PREVIEW_SIZE = 256;
+// Calculate responsive preview size based on viewport
+const useResponsivePreviewSize = () => {
+  const [previewSize, setPreviewSize] = useState(256);
+
+  useEffect(() => {
+    const calculateSize = () => {
+      // Get viewport dimensions
+      const vh = window.innerHeight;
+      const vw = window.innerWidth;
+      
+      // Calculate available space (accounting for sidebars and padding)
+      // Left sidebar: 320px, Right sidebar: 320px, padding: 64px total
+      const availableWidth = vw - 640 - 64;
+      const availableHeight = vh - 56 - 64; // Header height + padding
+      
+      // Use the smaller dimension to ensure it fits, with min/max constraints
+      const calculatedSize = Math.min(
+        Math.max(200, Math.min(availableWidth, availableHeight) * 0.7),
+        512
+      );
+      
+      setPreviewSize(Math.round(calculatedSize));
+    };
+
+    calculateSize();
+    window.addEventListener('resize', calculateSize);
+    return () => window.removeEventListener('resize', calculateSize);
+  }, []);
+
+  return previewSize;
+};
 
 const Preview: React.FC<PreviewProps> = ({ config, id }) => {
+  const PREVIEW_SIZE = useResponsivePreviewSize();
   const {
     mode,
     backgroundType,
@@ -33,7 +62,6 @@ const Preview: React.FC<PreviewProps> = ({ config, id }) => {
     textSize,
     pixelGrid,
     pixelSize,
-    pixelRounding,
   } = config;
 
   // Calculate scale factor from internal resolution (512) to preview display (256)
@@ -55,39 +83,6 @@ const Preview: React.FC<PreviewProps> = ({ config, id }) => {
 
   // Get Lucide Icon
   const LucideIcon = (Icons as any)[selectedIconName];
-
-  // Helper for Pixel Smart Rounding
-  const getPixelStyle = (index: number, color: string) => {
-    const style: React.CSSProperties = { backgroundColor: color || 'transparent' };
-    
-    if (pixelRounding > 0 && color) {
-        const cols = pixelGrid.cols;
-        const row = Math.floor(index / cols);
-        const col = index % cols;
-        
-        const check = (r: number, c: number) => {
-            if (r < 0 || r >= pixelGrid.rows || c < 0 || c >= cols) return false;
-            return pixelGrid.data[r * cols + c] === color;
-        };
-
-        const hasTop = check(row - 1, col);
-        const hasBottom = check(row + 1, col);
-        const hasLeft = check(row, col - 1);
-        const hasRight = check(row, col + 1);
-
-        const radiusVal = `${(pixelRounding / 100) * 50}%`;
-
-        // If a side has a neighbor, the shared corners are NOT rounded
-        const tl = (!hasTop && !hasLeft) ? radiusVal : '0';
-        const tr = (!hasTop && !hasRight) ? radiusVal : '0';
-        const br = (!hasBottom && !hasRight) ? radiusVal : '0';
-        const bl = (!hasBottom && !hasLeft) ? radiusVal : '0';
-
-        style.borderRadius = `${tl} ${tr} ${br} ${bl}`;
-    }
-    
-    return style;
-  };
 
   return (
     <div className="relative flex items-center justify-center group">
@@ -166,13 +161,11 @@ const Preview: React.FC<PreviewProps> = ({ config, id }) => {
                 gridTemplateColumns: `repeat(${pixelGrid.cols}, 1fr)`,
                 width: `${pixelSize * scale}px`,
                 aspectRatio: '1/1',
-                // When rounding is active, pixelated rendering can look jagged on rounded corners in some browsers, 
-                // but usually better to keep it for the straight edges. 
                 imageRendering: 'pixelated',
               }}
             >
               {pixelGrid.data.map((c, i) => (
-                <div key={i} style={getPixelStyle(i, c)} />
+                <div key={i} style={{ backgroundColor: c || 'transparent' }} />
               ))}
             </div>
           )}
@@ -186,20 +179,34 @@ const Preview: React.FC<PreviewProps> = ({ config, id }) => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   transform: `translateY(${config.imageOffsetY * scale}px)`,
+                  ...(config.imageSrc.startsWith('data:image/svg') ? {
+                    // For SVG, use the image as a mask and fill with the color
+                    WebkitMaskImage: `url(${config.imageSrc})`,
+                    WebkitMaskSize: 'contain',
+                    WebkitMaskRepeat: 'no-repeat',
+                    WebkitMaskPosition: 'center',
+                    maskImage: `url(${config.imageSrc})`,
+                    maskSize: 'contain',
+                    maskRepeat: 'no-repeat',
+                    maskPosition: 'center',
+                    backgroundColor: config.imageColor,
+                  } : {})
                 }}
              >
-               <img 
-                 src={config.imageSrc} 
-                 alt="Uploaded content" 
-                 style={{ 
-                   maxWidth: '100%', 
-                   maxHeight: '100%', 
-                   objectFit: 'contain',
-                   userSelect: 'none',
-                   pointerEvents: 'none',
-                   display: 'block'
-                 }} 
-               />
+               {!config.imageSrc.startsWith('data:image/svg') && (
+                 <img 
+                   src={config.imageSrc} 
+                   alt="Uploaded content" 
+                   style={{ 
+                     maxWidth: '100%', 
+                     maxHeight: '100%', 
+                     objectFit: 'contain',
+                     userSelect: 'none',
+                     pointerEvents: 'none',
+                     display: 'block',
+                   }} 
+                 />
+               )}
              </div>
           )}
         </div>

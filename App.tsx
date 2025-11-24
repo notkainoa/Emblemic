@@ -10,6 +10,7 @@ import Preview from './components/Preview';
 import PixelEditor from './components/PixelEditor';
 import { IconConfig, Preset, ContentMode, PixelGrid } from './types';
 import { FONTS, PRESETS, INITIAL_PIXEL_GRID_SIZE, INITIAL_CONFIG, ICON_SIZE, SQUIRCLE_PATH } from './constants';
+import { getSmartRoundedCorners } from './utils';
 
 // --- Types ---
 interface HistoryState {
@@ -395,35 +396,6 @@ const CropSuggestionModal: React.FC<CropSuggestionModalProps> = ({ pending, onAc
 };
 
 const generateId = () => Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-
-// Helper function to calculate which corners should be rounded for smart pixel rounding
-const getSmartRoundedCornersForPixel = (grid: PixelGrid, index: number): { topLeft: boolean, topRight: boolean, bottomLeft: boolean, bottomRight: boolean } => {
-  const { cols, rows, data } = grid;
-  const row = Math.floor(index / cols);
-  const col = index % cols;
-  
-  // Check if neighboring pixels exist
-  const hasTop = row > 0 && data[index - cols];
-  const hasBottom = row < rows - 1 && data[index + cols];
-  const hasLeft = col > 0 && data[index - 1];
-  const hasRight = col < cols - 1 && data[index + 1];
-  
-  // Check diagonal neighbors
-  const hasTopLeft = row > 0 && col > 0 && data[index - cols - 1];
-  const hasTopRight = row > 0 && col < cols - 1 && data[index - cols + 1];
-  const hasBottomLeft = row < rows - 1 && col > 0 && data[index + cols - 1];
-  const hasBottomRight = row < rows - 1 && col < cols - 1 && data[index + cols + 1];
-  
-  // A corner is rounded if:
-  // 1. The adjacent sides are not connected, OR
-  // 2. Both adjacent sides are connected but the diagonal is not
-  return {
-    topLeft: (!hasTop && !hasLeft) || (hasTop && hasLeft && !hasTopLeft),
-    topRight: (!hasTop && !hasRight) || (hasTop && hasRight && !hasTopRight),
-    bottomLeft: (!hasBottom && !hasLeft) || (hasBottom && hasLeft && !hasBottomLeft),
-    bottomRight: (!hasBottom && !hasRight) || (hasBottom && hasRight && !hasBottomRight),
-  };
-};
 
 // --- Main App ---
 
@@ -981,7 +953,7 @@ export default function App() {
                     
                     if (config.pixelRounding) {
                         // Use rounded corners with smart detection
-                        const corners = getSmartRoundedCornersForPixel(config.pixelGrid, i);
+                        const corners = getSmartRoundedCorners(config.pixelGrid, i);
                         const radius = cellSize * 0.25; // 25% corner radius
                         
                         // Generate path with selective rounded corners
@@ -1205,7 +1177,7 @@ export default function App() {
                 
                 if (config.pixelRounding) {
                     // Draw with smart rounded corners
-                    const corners = getSmartRoundedCornersForPixel(config.pixelGrid, i);
+                    const corners = getSmartRoundedCorners(config.pixelGrid, i);
                     const radius = cellSize * 0.25; // 25% corner radius
                     
                     ctx.beginPath();

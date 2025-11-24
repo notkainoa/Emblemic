@@ -1,57 +1,14 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { IconConfig, PixelGrid } from '../types';
+import { IconConfig } from '../types';
 import * as Icons from 'lucide-react';
 import { ICON_SIZE } from '../constants';
+import { getSmartRoundedCorners, cornersToBorderRadius } from '../utils';
 
 interface PreviewProps {
   config: IconConfig;
   id?: string; // For capture
 }
-
-// Helper function to calculate which corners should be rounded for each pixel
-// Returns a style string for border-radius that smartly rounds only corners not connected to neighbors
-const getSmartRoundedCorners = (pixelGrid: PixelGrid, index: number): string => {
-  const { cols, rows, data } = pixelGrid;
-  const row = Math.floor(index / cols);
-  const col = index % cols;
-  
-  // Check if neighboring pixels exist
-  const hasTop = row > 0 && data[index - cols];
-  const hasBottom = row < rows - 1 && data[index + cols];
-  const hasLeft = col > 0 && data[index - 1];
-  const hasRight = col < cols - 1 && data[index + 1];
-  
-  // Check diagonal neighbors for corner rounding
-  const hasTopLeft = row > 0 && col > 0 && data[index - cols - 1];
-  const hasTopRight = row > 0 && col < cols - 1 && data[index - cols + 1];
-  const hasBottomLeft = row < rows - 1 && col > 0 && data[index + cols - 1];
-  const hasBottomRight = row < rows - 1 && col < cols - 1 && data[index + cols + 1];
-  
-  // Calculate which corners should be rounded
-  // A corner is rounded if the adjacent sides are not connected
-  const roundTopLeft = !hasTop && !hasLeft;
-  const roundTopRight = !hasTop && !hasRight;
-  const roundBottomLeft = !hasBottom && !hasLeft;
-  const roundBottomRight = !hasBottom && !hasRight;
-  
-  // Also consider diagonal connections - if sides are connected but diagonal is not, round the corner
-  const roundTopLeftDiag = hasTop && hasLeft && !hasTopLeft;
-  const roundTopRightDiag = hasTop && hasRight && !hasTopRight;
-  const roundBottomLeftDiag = hasBottom && hasLeft && !hasBottomLeft;
-  const roundBottomRightDiag = hasBottom && hasRight && !hasBottomRight;
-  
-  // Build border-radius string (top-left, top-right, bottom-right, bottom-left)
-  const radius = '25%'; // Rounded corner radius
-  const noRadius = '0%';
-  
-  const topLeft = (roundTopLeft || roundTopLeftDiag) ? radius : noRadius;
-  const topRight = (roundTopRight || roundTopRightDiag) ? radius : noRadius;
-  const bottomRight = (roundBottomRight || roundBottomRightDiag) ? radius : noRadius;
-  const bottomLeft = (roundBottomLeft || roundBottomLeftDiag) ? radius : noRadius;
-  
-  return `${topLeft} ${topRight} ${bottomRight} ${bottomLeft}`;
-};
 
 // Calculate responsive preview size based on viewport
 const useResponsivePreviewSize = () => {
@@ -214,7 +171,7 @@ const Preview: React.FC<PreviewProps> = ({ config, id }) => {
                   key={i} 
                   style={{ 
                     backgroundColor: c || 'transparent',
-                    borderRadius: pixelRounding && c ? getSmartRoundedCorners(pixelGrid, i) : '0',
+                    borderRadius: pixelRounding && c ? cornersToBorderRadius(getSmartRoundedCorners(pixelGrid, i)) : '0',
                   }} 
                 />
               ))}

@@ -243,6 +243,12 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onExport, fi
     const [format, setFormat] = useState<ExportFormat>('png');
     const [exportScope, setExportScope] = useState<ExportScope>('full');
 
+    useEffect(() => {
+        if (isOpen) {
+            setExportScope('full');
+        }
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
     const handleExport = () => {
@@ -291,7 +297,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onExport, fi
                         <div className="space-y-2">
                             <label className="text-xs font-medium text-zinc-400">Background</label>
                             <div className="p-3 rounded-lg border border-white/5 bg-zinc-800/20">
-                                <div className="flex items-center justify-between gap-3">
+                                <div className="flex flex-col gap-3">
                                     <div className="flex flex-col gap-0.5">
                                         <span className="text-sm font-medium text-zinc-200">Background style</span>
                                         <span className="text-[11px] text-zinc-500">
@@ -300,14 +306,24 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onExport, fi
                                                 : 'Export transparent content only'}
                                         </span>
                                     </div>
-                                    <select
-                                        value={exportScope}
-                                        onChange={(e) => setExportScope(e.target.value as ExportScope)}
-                                        className="text-sm font-medium text-white bg-zinc-900 border border-white/10 rounded-md px-3 py-2 hover:border-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400/60"
-                                    >
-                                        <option value="content">Transparent</option>
-                                        <option value="full">Squircle</option>
-                                    </select>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[
+                                            { value: 'full' as ExportScope, label: 'Squircle' },
+                                            { value: 'content' as ExportScope, label: 'Transparent' }
+                                        ].map((option) => (
+                                            <button
+                                                key={option.value}
+                                                onClick={() => setExportScope(option.value)}
+                                                className={`py-2 px-3 rounded-lg border text-sm font-medium transition-all ${
+                                                    exportScope === option.value
+                                                        ? 'bg-white text-black border-white shadow-sm'
+                                                        : 'bg-zinc-900 text-zinc-300 border-white/10 hover:border-white/20 hover:text-white'
+                                                }`}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -22,12 +22,6 @@ export function getSmartRoundedCorners(grid: PixelGrid, index: number): {
   const hasLeft = col > 0 && data[index - 1];
   const hasRight = col < cols - 1 && data[index + 1];
   
-  // Check diagonal neighbors
-  const hasTopLeft = row > 0 && col > 0 && data[index - cols - 1];
-  const hasTopRight = row > 0 && col < cols - 1 && data[index - cols + 1];
-  const hasBottomLeft = row < rows - 1 && col > 0 && data[index + cols - 1];
-  const hasBottomRight = row < rows - 1 && col < cols - 1 && data[index + cols + 1];
-  
   // A corner is rounded only if at least one of the adjacent sides is NOT connected
   // If both sides are connected, the corner must remain sharp (no rounding)
   return {

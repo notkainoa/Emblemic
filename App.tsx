@@ -8,7 +8,7 @@ import {
 import * as LucideIcons from 'lucide-react';
 import Preview from './components/Preview';
 import PixelEditor from './components/PixelEditor';
-import { IconConfig, Preset, ContentMode, PixelGrid } from './types';
+import { IconConfig, Preset, ContentMode, PixelGrid, BackgroundType } from './types';
 import { FONTS, PRESETS, INITIAL_PIXEL_GRID_SIZE, INITIAL_CONFIG, ICON_SIZE, SQUIRCLE_PATH } from './constants';
 
 // --- Types ---
@@ -248,12 +248,18 @@ interface ExportModalProps {
 
 const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onExport, filename }) => {
     const [format, setFormat] = useState<ExportFormat>('png');
-    const [includeBackground, setIncludeBackground] = useState(true);
+    const [exportScope, setExportScope] = useState<ExportScope>('full');
+
+    useEffect(() => {
+        if (isOpen) {
+            setExportScope('full');
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
     const handleExport = () => {
-        onExport(format, includeBackground ? 'full' : 'content');
+        onExport(format, exportScope);
     };
 
     return (
@@ -294,19 +300,38 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onExport, fi
                             </div>
                         </div>
 
-                        {/* Background Toggle */}
-                        <div 
-                            onClick={() => setIncludeBackground(!includeBackground)}
-                            className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-zinc-800/20 hover:bg-zinc-800/40 hover:border-white/10 transition-all cursor-pointer group"
-                        >
-                            <div className="flex flex-col gap-0.5">
-                                 <span className="text-sm font-medium text-zinc-200 group-hover:text-white transition-colors">Background</span>
-                                 <span className="text-[11px] text-zinc-500">
-                                    {includeBackground ? 'Export squircle container' : 'Export transparent content'}
-                                 </span>
-                            </div>
-                            <div className={`w-11 h-6 rounded-full relative transition-colors duration-200 border border-transparent ${includeBackground ? 'bg-blue-600' : 'bg-zinc-700'}`}>
-                                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all duration-200 shadow-sm ${includeBackground ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+                        {/* Background Selection */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-medium text-zinc-400">Background</label>
+                            <div className="p-3 rounded-lg border border-white/5 bg-zinc-800/20">
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex flex-col gap-0.5">
+                                        <span className="text-sm font-medium text-zinc-200">Background style</span>
+                                        <span className="text-[11px] text-zinc-500">
+                                            {exportScope === 'full'
+                                                ? 'Export with squircle container'
+                                                : 'Export transparent content only'}
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[
+                                            { value: 'full' as ExportScope, label: 'Squircle' },
+                                            { value: 'content' as ExportScope, label: 'Transparent' }
+                                        ].map((option) => (
+                                            <button
+                                                key={option.value}
+                                                onClick={() => setExportScope(option.value)}
+                                                className={`py-2 px-3 rounded-lg border text-sm font-medium transition-all ${
+                                                    exportScope === option.value
+                                                        ? 'bg-white text-black border-white shadow-sm'
+                                                        : 'bg-zinc-900 text-zinc-300 border-white/10 hover:border-white/20 hover:text-white'
+                                                }`}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -326,72 +351,80 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onExport, fi
 
 const generateId = () => Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
 
-interface CropSuggestionModalProps {
-    pending: PendingCrop | null;
-    onAcceptCrop: () => void;
-    onSkip: () => void;
-}
+const clamp = (value: number, min = 0, max = 1) => Math.min(Math.max(value, min), max);
 
-const CropSuggestionModal: React.FC<CropSuggestionModalProps> = ({ pending, onAcceptCrop, onSkip }) => {
-    if (!pending) return null;
+const hexToRgb = (hex: string) => {
+    const normalized = hex.replace('#', '');
+    const bigint = parseInt(normalized, 16);
+    return {
+        r: (bigint >> 16) & 255,
+        g: (bigint >> 8) & 255,
+        b: bigint & 255,
+    };
+};
 
-    const whitespacePercent = Math.round(pending.whitespaceRatio * 100);
-
+const rgbToHex = (r: number, g: number, b: number) => {
     return (
-        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="w-full max-w-3xl bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-white/5 animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
-                <div className="p-6 space-y-6">
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-1">
-                            <h2 className="text-lg font-semibold text-white">Trim transparent padding?</h2>
-                            <p className="text-sm text-zinc-400 max-w-xl">
-                                We noticed about {whitespacePercent}% of this image is transparent padding. Crop it so your upload fills the frame?
-                            </p>
-                        </div>
-                        <button
-                            onClick={onSkip}
-                            className="p-2 -mr-2 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
-                            title="Keep image as-is"
-                        >
-                            <X size={18} />
-                        </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-zinc-950 border border-white/5 rounded-xl p-3 flex flex-col gap-3">
-                            <div className="text-xs font-semibold text-zinc-300">Original</div>
-                            <div className="aspect-square rounded-lg bg-zinc-900 border border-white/5 flex items-center justify-center overflow-hidden">
-                                <img src={pending.originalSrc} alt="Original upload" className="object-contain max-h-full" />
-                            </div>
-                        </div>
-                        <div className="bg-zinc-950 border border-white/5 rounded-xl p-3 flex flex-col gap-3">
-                            <div className="text-xs font-semibold text-zinc-300">Cropped preview</div>
-                            <div className="aspect-square rounded-lg bg-zinc-900 border border-white/5 flex items-center justify-center overflow-hidden">
-                                <img src={pending.croppedSrc} alt="Cropped preview" className="object-contain max-h-full" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        <button
-                            onClick={onAcceptCrop}
-                            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-white text-black hover:bg-zinc-200 font-semibold text-sm transition-all"
-                        >
-                            <Check size={16} />
-                            Crop away the whitespace
-                        </button>
-                        <button
-                            onClick={onSkip}
-                            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-white/10 text-zinc-200 hover:border-white/30 hover:bg-white/5 font-semibold text-sm transition-all"
-                        >
-                            <X size={16} />
-                            Keep original
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        '#' +
+        [r, g, b]
+            .map((x) => {
+                const hex = x.toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            })
+            .join('')
     );
+};
+
+const shiftColor = (hex: string, delta = 0.12) => {
+    const { r, g, b } = hexToRgb(hex);
+    const rNorm = r / 255;
+    const gNorm = g / 255;
+    const bNorm = b / 255;
+
+    const max = Math.max(rNorm, gNorm, bNorm);
+    const min = Math.min(rNorm, gNorm, bNorm);
+    const l = (max + min) / 2;
+
+    const s = max === min ? 0 : l > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min);
+    let h = 0;
+
+    if (max !== min) {
+        switch (max) {
+            case rNorm:
+                h = (gNorm - bNorm) / (max - min) + (gNorm < bNorm ? 6 : 0);
+                break;
+            case gNorm:
+                h = (bNorm - rNorm) / (max - min) + 2;
+                break;
+            default:
+                h = (rNorm - gNorm) / (max - min) + 4;
+                break;
+        }
+        h /= 6;
+    }
+
+    const adjustedHue = (h + 0.02) % 1; // subtle hue shift for variety
+    const adjustedLightness = clamp(l + (l > 0.5 ? -delta : delta));
+
+    const hueToRgb = (p: number, q: number, t: number) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+    };
+
+    const q = adjustedLightness < 0.5
+        ? adjustedLightness * (1 + s)
+        : adjustedLightness + s - adjustedLightness * s;
+    const p = 2 * adjustedLightness - q;
+
+    const rOut = Math.round(hueToRgb(p, q, adjustedHue + 1 / 3) * 255);
+    const gOut = Math.round(hueToRgb(p, q, adjustedHue) * 255);
+    const bOut = Math.round(hueToRgb(p, q, adjustedHue - 1 / 3) * 255);
+
+    return rgbToHex(rOut, gOut, bOut).toUpperCase();
 };
 
 // --- Main App ---
@@ -412,7 +445,8 @@ export default function App() {
                     ...INITIAL_CONFIG,
                     ...f.config,
                     imageSize: f.config.imageSize || (f.config.imageScale ? 256 : INITIAL_CONFIG.imageSize),
-                    radialGlareOpacity: f.config.radialGlareOpacity ?? 0
+                    radialGlareOpacity: f.config.radialGlareOpacity ?? 0,
+                    backgroundTransitioning: false,
                 }
             }));
             
@@ -453,6 +487,16 @@ export default function App() {
   const [viewZoom, setViewZoom] = useState(1);
   const [isZoomMenuOpen, setIsZoomMenuOpen] = useState(false);
   const [iconSearch, setIconSearch] = useState('');
+
+  const backgroundTransitionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+      return () => {
+          if (backgroundTransitionTimeout.current) {
+              clearTimeout(backgroundTransitionTimeout.current);
+          }
+      };
+  }, []);
   
   // Export State
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -666,16 +710,20 @@ export default function App() {
   };
 
 
-  const pushToHistory = (newConfig: IconConfig) => {
-    setHistory(curr => ({
-      past: [...curr.past, curr.present],
-      present: newConfig,
-      future: []
-    }));
-  };
+  const updateConfig = (updates: Partial<IconConfig>, options?: { transient?: boolean }) => {
+    setHistory((curr) => {
+        const newConfig = { ...curr.present, ...updates } as IconConfig;
 
-  const updateConfig = (updates: Partial<IconConfig>) => {
-    pushToHistory({ ...config, ...updates });
+        if (options?.transient) {
+            return { ...curr, present: newConfig };
+        }
+
+        return {
+            past: [...curr.past, curr.present],
+            present: newConfig,
+            future: [],
+        };
+    });
   };
 
   const handleGridResize = (newSize: number) => {
@@ -707,6 +755,42 @@ export default function App() {
               data: newData
           }
       });
+  };
+
+  const handleBackgroundTypeChange = (targetType: BackgroundType) => {
+      if (targetType === config.backgroundType) return;
+
+      if (backgroundTransitionTimeout.current) {
+          clearTimeout(backgroundTransitionTimeout.current);
+      }
+
+      const updates: Partial<IconConfig> = { backgroundType: targetType };
+
+      if (config.backgroundType !== 'solid' && targetType === 'solid') {
+          updates.solidColor = config.gradientStart;
+      }
+
+      if (config.backgroundType === 'solid' && (targetType === 'linear' || targetType === 'radial')) {
+          const nextStart = config.solidColor;
+          updates.gradientStart = nextStart;
+          updates.gradientEnd = shiftColor(nextStart);
+
+          if (targetType === 'linear') {
+              updates.gradientAngle = 135;
+          }
+      }
+
+      if (targetType === 'linear' && config.backgroundType !== 'linear') {
+          updates.gradientAngle = updates.gradientAngle ?? config.gradientAngle ?? 135;
+      }
+
+      updates.backgroundTransitioning = true;
+
+      updateConfig(updates);
+
+      backgroundTransitionTimeout.current = setTimeout(() => {
+          updateConfig({ backgroundTransitioning: false }, { transient: true });
+      }, 180);
   };
 
   const handleUndo = () => {
@@ -1606,6 +1690,7 @@ export default function App() {
                                     gradientStart: preset.gradientStart,
                                     gradientEnd: preset.gradientEnd,
                                     gradientAngle: preset.gradientAngle,
+                                    backgroundTransitioning: false,
                                 })}
                                 className="group relative aspect-square rounded-full overflow-hidden ring-1 ring-white/10 hover:ring-white/40 transition-all hover:scale-110"
                                 title={preset.name}
@@ -1638,10 +1723,10 @@ export default function App() {
                             {(['solid', 'linear', 'radial'] as const).map(type => (
                                 <button
                                     key={type}
-                                    onClick={() => updateConfig({ backgroundType: type })}
+                                    onClick={() => handleBackgroundTypeChange(type)}
                                     className={`px-3 py-1 text-[10px] capitalize rounded-sm transition-all ${
-                                        config.backgroundType === type 
-                                        ? 'bg-zinc-700 text-white shadow-sm' 
+                                        config.backgroundType === type
+                                        ? 'bg-zinc-700 text-white shadow-sm'
                                         : 'text-zinc-500 hover:text-zinc-300'
                                     }`}
                                 >

@@ -120,6 +120,7 @@ export const INITIAL_CONFIG: IconConfig = {
     gradientStart: '#8E2DE2',
     gradientEnd: '#4A00E0',
     gradientAngle: 135,
+    backgroundTransitioning: false,
     noiseOpacity: 0,
     radialGlareOpacity: 0,
     selectedIconName: 'Plane',

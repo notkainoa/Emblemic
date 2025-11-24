@@ -22,6 +22,7 @@ export interface IconConfig {
   gradientStart: string;
   gradientEnd: string;
   gradientAngle: number; // for linear
+  backgroundTransitioning: boolean;
   noiseOpacity: number;
   radialGlareOpacity: number;
   

@@ -30,10 +30,20 @@ type ExportScope = 'full' | 'content';
 
 // --- UI Helper Components ---
 
-const Section = ({ title, children, className = "" }: { title: string; children?: React.ReactNode; className?: string }) => (
+const Section = ({
+  title,
+  children,
+  className = "",
+  contentClassName = ""
+}: {
+  title: string;
+  children?: React.ReactNode;
+  className?: string;
+  contentClassName?: string;
+}) => (
   <div className={`mb-6 ${className}`}>
     <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-3 px-1">{title}</h3>
-    <div className="space-y-3">{children}</div>
+    <div className={`space-y-3 ${contentClassName}`}>{children}</div>
   </div>
 );
 
@@ -1143,13 +1153,14 @@ export default function App() {
              {/* Content Settings Scroll Area */}
              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                 
+
                 {/* ICON MODE: Search */}
                 {config.mode === 'icon' && (
-                    <div className="space-y-6 animate-in fade-in duration-300">
-                        <Section title="Select Icon">
+                    <div className="flex h-full flex-col space-y-6 animate-in fade-in duration-300">
+                        <Section title="Select Icon" className="flex h-full flex-col" contentClassName="flex h-full flex-col">
                              <div className="relative group mb-3">
                                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" size={14} />
-                                <input 
+                                <input
                                     type="text"
                                     placeholder="Search icons..."
                                     className="w-full bg-zinc-900 border border-white/10 rounded-md pl-8 pr-3 py-2 text-xs focus:outline-none focus:border-blue-500/50 transition-all text-zinc-300 placeholder:text-zinc-600"
@@ -1157,28 +1168,27 @@ export default function App() {
                                     onChange={(e) => setIconSearch(e.target.value)}
                                 />
                             </div>
-                            <div
-                                className="grid grid-cols-5 gap-1.5 overflow-y-auto p-1 bg-zinc-900/30 rounded-lg border border-white/5"
-                                style={{ maxHeight: 'calc(100vh - 18rem)' }}
-                            >
-                                {iconList.map((name) => {
-                                    const Icon = (LucideIcons as any)[name];
-                                    return (
-                                        <button
-                                            key={name}
-                                            onClick={() => updateConfig({ selectedIconName: name })}
-                                            className={`aspect-square flex items-center justify-center rounded transition-all ${config.selectedIconName === name ? 'bg-white text-black shadow-lg' : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200'}`}
-                                            title={name}
-                                        >
-                                            <Icon size={18} />
-                                        </button>
-                                    );
-                                })}
+                            <div className="flex-1 overflow-hidden rounded-lg border border-white/5 bg-zinc-900/30">
+                                <div className="grid h-full grid-cols-5 gap-1.5 overflow-y-auto p-1 custom-scrollbar">
+                                    {iconList.map((name) => {
+                                        const Icon = (LucideIcons as any)[name];
+                                        return (
+                                            <button
+                                                key={name}
+                                                onClick={() => updateConfig({ selectedIconName: name })}
+                                                className={`aspect-square flex items-center justify-center rounded transition-all ${
+                                                    config.selectedIconName === name ? 'bg-white text-black shadow-lg' : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200'}`}
+                                                title={name}
+                                            >
+                                                <Icon size={18} />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </Section>
                     </div>
                 )}
-
                 {/* TEXT MODE: Input & Fonts */}
                 {config.mode === 'text' && (
                     <div className="space-y-6 animate-in fade-in duration-300">

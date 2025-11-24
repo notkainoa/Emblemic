@@ -1,8 +1,55 @@
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { IconConfig, PixelGrid } from '../types';
 import * as Icons from 'lucide-react';
 import { ICON_SIZE } from '../constants';
+
+// Component to render pixel art as a seamless canvas (no grid lines)
+const PixelCanvas: React.FC<{ grid: PixelGrid; size: number }> = ({ grid, size }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, size, size);
+
+    const cellSize = size / grid.cols;
+
+    // Draw each pixel as a filled rectangle
+    // Use Math.floor for position and Math.ceil for size to ensure complete coverage
+    grid.data.forEach((color, i) => {
+      if (color) {
+        const row = Math.floor(i / grid.cols);
+        const col = i % grid.cols;
+        ctx.fillStyle = color;
+        // Calculate pixel boundaries to ensure seamless coverage
+        const x = Math.floor(col * cellSize);
+        const y = Math.floor(row * cellSize);
+        const nextX = Math.floor((col + 1) * cellSize);
+        const nextY = Math.floor((row + 1) * cellSize);
+        ctx.fillRect(x, y, nextX - x, nextY - y);
+      }
+    });
+  }, [grid, size]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={size}
+      height={size}
+      style={{
+        width: size,
+        height: size,
+        imageRendering: 'pixelated',
+      }}
+    />
+  );
+};
 
 interface PreviewProps {
   config: IconConfig;
@@ -155,20 +202,7 @@ const Preview: React.FC<PreviewProps> = ({ config, id }) => {
           )}
 
           {mode === 'pixel' && (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${pixelGrid.cols}, 1fr)`,
-                gap: 0,
-                width: `${pixelSize * scale}px`,
-                aspectRatio: '1/1',
-                imageRendering: 'pixelated',
-              }}
-            >
-              {pixelGrid.data.map((c, i) => (
-                <div key={i} style={{ backgroundColor: c || 'transparent' }} />
-              ))}
-            </div>
+            <PixelCanvas grid={pixelGrid} size={Math.round(pixelSize * scale)} />
           )}
 
           {mode === 'image' && config.imageSrc && (

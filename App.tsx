@@ -644,21 +644,28 @@ export default function App() {
     reader.onload = (event) => {
         if (event.target?.result) {
             const src = event.target.result as string;
-            const img = new Image();
-            img.onload = () => {
-                const analysis = detectTransparentWhitespace(img);
-                if (analysis) {
-                    setPendingCrop({
-                        originalSrc: src,
-                        croppedSrc: analysis.croppedSrc,
-                        whitespaceRatio: analysis.whitespaceRatio,
-                        fileName: file.name
-                    });
-                } else {
-                    applyImageSource(src);
-                }
-            };
-            img.src = src;
+            const isSvg = src.startsWith('data:image/svg');
+            
+            // Skip cropping analysis for SVGs to preserve them as SVGs
+            if (isSvg) {
+                applyImageSource(src);
+            } else {
+                const img = new Image();
+                img.onload = () => {
+                    const analysis = detectTransparentWhitespace(img);
+                    if (analysis) {
+                        setPendingCrop({
+                            originalSrc: src,
+                            croppedSrc: analysis.croppedSrc,
+                            whitespaceRatio: analysis.whitespaceRatio,
+                            fileName: file.name
+                        });
+                    } else {
+                        applyImageSource(src);
+                    }
+                };
+                img.src = src;
+            }
         }
     };
     reader.readAsDataURL(file);

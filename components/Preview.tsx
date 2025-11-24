@@ -54,9 +54,9 @@ const Preview: React.FC<PreviewProps> = ({ config, id }) => {
 
   const backgroundTransitionStyle = useMemo(
     () => ({
-      transition: 'opacity 180ms ease, filter 180ms ease',
-      opacity: backgroundTransitioning ? 0.7 : 1,
-      filter: backgroundTransitioning ? 'blur(6px)' : 'none',
+      transition: 'opacity 200ms ease',
+      opacity: backgroundTransitioning ? 0.85 : 1,
+      willChange: 'opacity',
     }),
     [backgroundTransitioning]
   );

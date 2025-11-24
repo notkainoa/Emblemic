@@ -35,6 +35,11 @@ interface PendingCrop {
     fileName: string;
 }
 
+// Constants for export cropping
+const ALPHA_THRESHOLD = 5; // Minimum alpha value to consider a pixel visible
+const TEXT_WIDTH_RATIO = 0.6; // Approximate character width as fraction of font size
+const TEXT_HEIGHT_RATIO = 1.2; // Approximate text height as fraction of font size
+
 // --- UI Helper Components ---
 
 const Section = ({ title, children, className = "" }: { title: string; children?: React.ReactNode; className?: string }) => (
@@ -496,7 +501,7 @@ export default function App() {
         for (let x = 0; x < width; x++) {
             const idx = (y * width + x) * 4 + 3; // alpha channel
             const alpha = data[idx];
-            if (alpha > 5) {
+            if (alpha > ALPHA_THRESHOLD) {
                 if (x < minX) minX = x;
                 if (y < minY) minY = y;
                 if (x > maxX) maxX = x;
@@ -539,12 +544,12 @@ export default function App() {
     
     let minX = width, minY = height, maxX = -1, maxY = -1;
 
-    // Find the bounds of non-transparent pixels
+    // Find the bounds of non-transparent pixels (alpha > ALPHA_THRESHOLD)
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             const idx = (y * width + x) * 4 + 3; // alpha channel
             const alpha = data[idx];
-            if (alpha > 5) {
+            if (alpha > ALPHA_THRESHOLD) {
                 if (x < minX) minX = x;
                 if (y < minY) minY = y;
                 if (x > maxX) maxX = x;
@@ -589,9 +594,10 @@ export default function App() {
       };
     } else if (config.mode === 'text') {
       // For text, estimate bounds based on font size
-      // This is approximate; true bounds would require measuring text
-      const estimatedWidth = config.textSize * config.textContent.length * 0.6;
-      const estimatedHeight = config.textSize * 1.2;
+      // Uses approximate ratios: character width ≈ 60% of font size, line height ≈ 120% of font size
+      // These are conservative estimates that work reasonably well across different fonts
+      const estimatedWidth = config.textSize * config.textContent.length * TEXT_WIDTH_RATIO;
+      const estimatedHeight = config.textSize * TEXT_HEIGHT_RATIO;
       const x = (ICON_SIZE - estimatedWidth) / 2;
       const y = (ICON_SIZE - estimatedHeight) / 2 + config.textOffsetY;
       return {

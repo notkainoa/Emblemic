@@ -149,4 +149,4 @@ export const INITIAL_CONFIG: IconConfig = {
 // iOS-style squircle (superellipse) path for 512x512 viewBox
 // This uses cubic bezier curves with a smoothing factor of 0.6 to create the continuous curvature
 // characteristic of iOS app icons. Corner radius is ~22.1% of size (113.152px for 512px)
-export const SQUIRCLE_PATH = "M 113.152 0 L 398.848 0 C 466.7392 0, 512 45.2608, 512 113.152 L 512 398.848 C 512 466.7392, 466.7392 512, 398.848 512 L 113.152 512 C 45.2608 512, 0 466.7392, 0 398.848 L 0 113.152 C 0 45.2608, 45.2608 0, 113.152 0 Z";
+export const SQUIRCLE_PATH = "M 113.152 0 L 398.848 0 C 466.7392 0 512 45.2608 512 113.152 L 512 398.848 C 512 466.7392 466.7392 512 398.848 512 L 113.152 512 C 45.2608 512 0 466.7392 0 398.848 L 0 113.152 C 0 45.2608 45.2608 0 113.152 0 Z";

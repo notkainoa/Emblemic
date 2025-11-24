@@ -8,6 +8,8 @@
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](#)
 
+[Submit feature requests or bug reports](https://emblemic.userjot.com/)
+
 ---
 
 ## Overview

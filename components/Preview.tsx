@@ -1,8 +1,9 @@
 
-import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { IconConfig, PixelGrid } from '../types';
+import React, { useMemo, useState, useEffect } from 'react';
+import { IconConfig } from '../types';
 import * as Icons from 'lucide-react';
 import { ICON_SIZE } from '../constants';
+import { getSmartRoundedCorners, cornersToBorderRadius } from '../utils';
 
 // Component to render pixel art as a seamless canvas (no grid lines)
 const PixelCanvas: React.FC<{ grid: PixelGrid; size: number }> = ({ grid, size }) => {
@@ -109,6 +110,8 @@ const Preview: React.FC<PreviewProps> = ({ config, id }) => {
     textSize,
     pixelGrid,
     pixelSize,
+    pixelRounding,
+    pixelRoundingStyle,
   } = config;
 
   // Calculate scale factor from internal resolution (512) to preview display (256)
@@ -202,7 +205,25 @@ const Preview: React.FC<PreviewProps> = ({ config, id }) => {
           )}
 
           {mode === 'pixel' && (
-            <PixelCanvas grid={pixelGrid} size={Math.round(pixelSize * scale)} />
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${pixelGrid.cols}, 1fr)`,
+                width: `${pixelSize * scale}px`,
+                aspectRatio: '1/1',
+                imageRendering: pixelRounding ? 'auto' : 'pixelated',
+              }}
+            >
+              {pixelGrid.data.map((c, i) => (
+                <div 
+                  key={i} 
+                  style={{ 
+                    backgroundColor: c || 'transparent',
+                    borderRadius: pixelRounding && c ? cornersToBorderRadius(getSmartRoundedCorners(pixelGrid, i), pixelRoundingStyle) : '0',
+                  }} 
+                />
+              ))}
+            </div>
           )}
 
           {mode === 'image' && config.imageSrc && (

@@ -10,6 +10,7 @@ import Preview from './components/Preview';
 import PixelEditor from './components/PixelEditor';
 import { IconConfig, Preset, ContentMode, PixelGrid } from './types';
 import { FONTS, PRESETS, INITIAL_PIXEL_GRID_SIZE, INITIAL_CONFIG, ICON_SIZE, SQUIRCLE_PATH } from './constants';
+import { getSmartRoundedCorners } from './utils';
 
 // --- Types ---
 interface HistoryState {
@@ -421,6 +422,8 @@ export default function App() {
                     imageSize: f.config.imageSize || (f.config.imageScale ? 256 : INITIAL_CONFIG.imageSize),
                     imageColor: f.config.imageColor || INITIAL_CONFIG.imageColor,
                     radialGlareOpacity: f.config.radialGlareOpacity ?? 0,
+                    pixelRounding: f.config.pixelRounding ?? false,
+                    pixelRoundingStyle: f.config.pixelRoundingStyle || '25%',
                     backgroundTransitioning: false,
                 }
             }));
@@ -1048,14 +1051,37 @@ export default function App() {
                 if (color) {
                     const r = Math.floor(i / gridSize);
                     const c = i % gridSize;
-                    // Use integer boundaries to ensure seamless pixel coverage
-                    const x = Math.floor(startX + c * cellSize);
-                    const y = Math.floor(startY + r * cellSize);
-                    const nextX = Math.floor(startX + (c + 1) * cellSize);
-                    const nextY = Math.floor(startY + (r + 1) * cellSize);
-                    const w = nextX - x;
-                    const h = nextY - y;
-                    rects += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}" />`;
+                    const x = startX + c * cellSize;
+                    const y = startY + r * cellSize;
+                    
+                    if (config.pixelRounding) {
+                        // Use rounded corners with smart detection
+                        const corners = getSmartRoundedCorners(config.pixelGrid, i);
+                        // Convert percentage to actual pixel value
+                        const radiusPercent = parseFloat(config.pixelRoundingStyle) / 100;
+                        const radius = cellSize * radiusPercent;
+                        
+                        // Generate path with selective rounded corners
+                        const tl = corners.topLeft ? radius : 0;
+                        const tr = corners.topRight ? radius : 0;
+                        const br = corners.bottomRight ? radius : 0;
+                        const bl = corners.bottomLeft ? radius : 0;
+                        
+                        // Create a path with individual corner radii
+                        const path = `M ${x + tl},${y} 
+                                     L ${x + cellSize - tr},${y} 
+                                     Q ${x + cellSize},${y} ${x + cellSize},${y + tr} 
+                                     L ${x + cellSize},${y + cellSize - br} 
+                                     Q ${x + cellSize},${y + cellSize} ${x + cellSize - br},${y + cellSize} 
+                                     L ${x + bl},${y + cellSize} 
+                                     Q ${x},${y + cellSize} ${x},${y + cellSize - bl} 
+                                     L ${x},${y + tl} 
+                                     Q ${x},${y} ${x + tl},${y} Z`;
+                        rects += `<path d="${path}" fill="${color}" />`;
+                    } else {
+                        // Regular rectangular pixels
+                        rects += `<rect x="${x}" y="${y}" width="${cellSize + 0.1}" height="${cellSize + 0.1}" fill="${color}" />`;
+                    }
                 }
             });
             contentSvg = `<g shape-rendering="crispEdges">${rects}</g>`;
@@ -1270,13 +1296,42 @@ export default function App() {
             if (color) {
                 const r = Math.floor(i / gridSize);
                 const c = i % gridSize;
+                const x = startX + c * cellSize;
+                const y = startY + r * cellSize;
+                
                 ctx.fillStyle = color;
-                // Use integer boundaries to ensure seamless pixel coverage
-                const x = Math.floor(startX + c * cellSize);
-                const y = Math.floor(startY + r * cellSize);
-                const nextX = Math.floor(startX + (c + 1) * cellSize);
-                const nextY = Math.floor(startY + (r + 1) * cellSize);
-                ctx.fillRect(x, y, nextX - x, nextY - y);
+                
+                if (config.pixelRounding) {
+                    // Draw with smart rounded corners
+                    const corners = getSmartRoundedCorners(config.pixelGrid, i);
+                    // Convert percentage to actual pixel value
+                    const radiusPercent = parseFloat(config.pixelRoundingStyle) / 100;
+                    const radius = cellSize * radiusPercent;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x + (corners.topLeft ? radius : 0), y);
+                    ctx.lineTo(x + cellSize - (corners.topRight ? radius : 0), y);
+                    if (corners.topRight) {
+                        ctx.quadraticCurveTo(x + cellSize, y, x + cellSize, y + radius);
+                    }
+                    ctx.lineTo(x + cellSize, y + cellSize - (corners.bottomRight ? radius : 0));
+                    if (corners.bottomRight) {
+                        ctx.quadraticCurveTo(x + cellSize, y + cellSize, x + cellSize - radius, y + cellSize);
+                    }
+                    ctx.lineTo(x + (corners.bottomLeft ? radius : 0), y + cellSize);
+                    if (corners.bottomLeft) {
+                        ctx.quadraticCurveTo(x, y + cellSize, x, y + cellSize - radius);
+                    }
+                    ctx.lineTo(x, y + (corners.topLeft ? radius : 0));
+                    if (corners.topLeft) {
+                        ctx.quadraticCurveTo(x, y, x + radius, y);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    // Regular rectangular pixels
+                    ctx.fillRect(x, y, cellSize + 1, cellSize + 1);
+                }
             }
         });
     } else if (config.mode === 'icon') {
@@ -1926,6 +1981,49 @@ export default function App() {
                  {config.mode === 'pixel' && (
                      <Section title="Pixel Settings">
                         <NumberInput label="Render Size" value={config.pixelSize} min={32} max={1024} step={8} suffix="px" onChange={(v) => updateConfig({ pixelSize: v })} />
+                        <div className="pt-3 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-medium text-zinc-400">Smart Rounding</span>
+                                <button 
+                                    onClick={() => updateConfig({ pixelRounding: !config.pixelRounding })}
+                                    className={`w-9 h-5 rounded-full relative transition-colors ${config.pixelRounding ? 'bg-blue-600' : 'bg-zinc-700'}`}
+                                >
+                                    <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-transform duration-200 shadow-sm ${config.pixelRounding ? 'translate-x-5' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
+                            {config.pixelRounding && (
+                                <div className="space-y-3 animate-in slide-in-from-top-1 fade-in duration-200">
+                                    <div className="text-[10px] text-zinc-500 pl-1">
+                                        Rounds corners that aren't connected to other pixels
+                                    </div>
+                                    <div className="flex items-center justify-between pl-1">
+                                        <span className="text-[11px] font-medium text-zinc-400">Corner Style</span>
+                                        <div className="flex gap-1 bg-zinc-900 p-0.5 rounded-md border border-white/5">
+                                            <button
+                                                onClick={() => updateConfig({ pixelRoundingStyle: '25%' })}
+                                                className={`px-3 py-1 text-[10px] font-medium rounded transition-all ${
+                                                    config.pixelRoundingStyle === '25%' 
+                                                    ? 'bg-zinc-700 text-white shadow-sm' 
+                                                    : 'text-zinc-500 hover:text-zinc-300'
+                                                }`}
+                                            >
+                                                Soft
+                                            </button>
+                                            <button
+                                                onClick={() => updateConfig({ pixelRoundingStyle: '50%' })}
+                                                className={`px-3 py-1 text-[10px] font-medium rounded transition-all ${
+                                                    config.pixelRoundingStyle === '50%' 
+                                                    ? 'bg-zinc-700 text-white shadow-sm' 
+                                                    : 'text-zinc-500 hover:text-zinc-300'
+                                                }`}
+                                            >
+                                                Round
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                      </Section>
                  )}
 

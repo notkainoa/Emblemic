@@ -1147,7 +1147,10 @@ export default function App() {
     } else if (config.mode === 'icon') {
         const svgEl = document.getElementById('preview-export-target')?.querySelector('svg');
         if (svgEl) {
-            const svgData = new XMLSerializer().serializeToString(svgEl);
+            // Clone the SVG and set the color attribute to ensure proper color in raster export
+            const clone = svgEl.cloneNode(true) as SVGElement;
+            clone.setAttribute('color', config.iconColor);
+            const svgData = new XMLSerializer().serializeToString(clone);
             const img = new Image();
             const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
             const url = URL.createObjectURL(svgBlob);

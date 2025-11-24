@@ -1048,7 +1048,7 @@ export default function App() {
                 if (color) {
                     const r = Math.floor(i / gridSize);
                     const c = i % gridSize;
-                    rects += `<rect x="${startX + c * cellSize}" y="${startY + r * cellSize}" width="${cellSize + 0.1}" height="${cellSize + 0.1}" fill="${color}" />`;
+                    rects += `<rect x="${startX + c * cellSize}" y="${startY + r * cellSize}" width="${cellSize}" height="${cellSize}" fill="${color}" />`;
                 }
             });
             contentSvg = `<g>${rects}</g>`;
@@ -1264,7 +1264,7 @@ export default function App() {
                 const r = Math.floor(i / gridSize);
                 const c = i % gridSize;
                 ctx.fillStyle = color;
-                ctx.fillRect(startX + c * cellSize, startY + r * cellSize, cellSize + 1, cellSize + 1);
+                ctx.fillRect(startX + c * cellSize, startY + r * cellSize, cellSize, cellSize);
             }
         });
     } else if (config.mode === 'icon') {

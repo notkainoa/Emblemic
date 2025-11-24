@@ -159,6 +159,7 @@ const Preview: React.FC<PreviewProps> = ({ config, id }) => {
               style={{
                 display: 'grid',
                 gridTemplateColumns: `repeat(${pixelGrid.cols}, 1fr)`,
+                gap: 0,
                 width: `${pixelSize * scale}px`,
                 aspectRatio: '1/1',
                 imageRendering: 'pixelated',

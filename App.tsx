@@ -1084,7 +1084,7 @@ export default function App() {
                     }
                 }
             });
-            contentSvg = `<g>${rects}</g>`;
+            contentSvg = `<g shape-rendering="crispEdges">${rects}</g>`;
         } else if (config.mode === 'image' && config.imageSrc) {
             const drawSize = config.imageSize;
             const isSvg = config.imageSrc.startsWith('data:image/svg');

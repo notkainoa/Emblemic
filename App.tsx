@@ -1379,21 +1379,34 @@ export default function App() {
         const offsetY = config.imageOffsetY * scaleFactor;
         
         if (isSvg) {
-            // For SVG images, apply color tinting
-            // First draw the image normally
-            ctx.drawImage(
-                img, 
-                -w / 2, 
-                -h / 2 + offsetY, 
-                w, 
-                h
-            );
+            // For SVG images, apply color tinting using an offscreen canvas
+            // This prevents the composite operation from affecting the background
+            const offscreenCanvas = document.createElement('canvas');
+            offscreenCanvas.width = Math.ceil(w);
+            offscreenCanvas.height = Math.ceil(h);
+            const offscreenCtx = offscreenCanvas.getContext('2d');
             
-            // Then apply color overlay using composite operation
-            ctx.globalCompositeOperation = 'source-in';
-            ctx.fillStyle = config.imageColor;
-            ctx.fillRect(-w / 2, -h / 2 + offsetY, w, h);
-            ctx.globalCompositeOperation = 'source-over';
+            if (offscreenCtx) {
+                // Draw the SVG on the offscreen canvas
+                offscreenCtx.drawImage(img, 0, 0, w, h);
+                
+                // Apply color tinting using composite operation on the offscreen canvas
+                offscreenCtx.globalCompositeOperation = 'source-in';
+                offscreenCtx.fillStyle = config.imageColor;
+                offscreenCtx.fillRect(0, 0, w, h);
+                
+                // Draw the tinted result onto the main canvas
+                ctx.drawImage(
+                    offscreenCanvas,
+                    -w / 2,
+                    -h / 2 + offsetY,
+                    w,
+                    h
+                );
+            } else {
+                // Fallback: draw SVG without color tinting if offscreen canvas fails
+                ctx.drawImage(img, -w / 2, -h / 2 + offsetY, w, h);
+            }
         } else {
             ctx.drawImage(
                 img, 
